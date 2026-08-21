@@ -176,6 +176,18 @@ document.addEventListener('DOMContentLoaded', () => {
             { text: 'corporation kya h', label: 'corporation kya h' },
             { text: 'corporation kya hai', label: 'corporation kya hai' },
         ],
+        mr: [
+            { text: 'कॉर्पोरेशन म्हणजे काय?', label: 'कॉर्पोरेशन म्हणजे काय?' },
+        ],
+        gu: [
+            { text: 'કોર્પોરેશન શું છે?', label: 'કોર્પોરેશન શું છે?' },
+        ],
+        te: [
+            { text: 'కార్పొరేషన్ అంటే ఏమిటి?', label: 'కార్పొరేషన్ అంటే ఏమిటి?' },
+        ],
+        kn: [
+            { text: 'ಕಾರ್ಪೊರೇಶನ್ ಎಂದರೇನು?', label: 'ಕಾರ್ಪೊರೇಶನ್ ಎಂದರೇನು?' },
+        ],
     };
 
     const langPills = document.querySelectorAll('.lang-pill');
