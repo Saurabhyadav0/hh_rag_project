@@ -30,3 +30,6 @@ data/*.parquet
 *.mp3
 *.webm
 *.ogg
+# ...except the committed voice negative-test fixtures (small, needed for
+# test_negative_cases.py's voice-path tests to run in a fresh checkout/CI).
+!data/test_audio/*.wav
