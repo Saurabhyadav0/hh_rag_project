@@ -1,20 +1,23 @@
 :root {
-    --bg: #fbf3dd;
-    --bg-soft: #f4ecd4;
-    --ink: #16281f;
-    --ink-dim: #45594c;
-    --ink-faint: #7c8d80;
-    --card: #fffdf6;
-    --card-raised: #fff8e8;
-    --primary: #0e7a52;
-    --primary-dim: #0e7a521a;
-    --primary-line: #0e7a5255;
-    --secondary: #e8532e;
-    --secondary-dim: #e8532e1a;
-    --good: #0e7a52;
-    --good-dim: #0e7a521a;
-    --bad: #d1272f;
-    --bad-dim: #d1272f1a;
+    /* Hacker House Goa 2026 event palette, matched to the official
+       "Frame in Goa" companion tool for visual consistency across
+       event-affiliated projects. */
+    --bg: #fcfaef;
+    --bg-soft: #f4efd9;
+    --ink: #003319;
+    --ink-dim: #0e5c37;
+    --ink-faint: #6a8577;
+    --card: #fefcf3;
+    --card-raised: #f9f5e6;
+    --primary: #006836;
+    --primary-dim: #0068361a;
+    --primary-line: #00683655;
+    --secondary: #dd0968;
+    --secondary-dim: #dd09681a;
+    --good: #006836;
+    --good-dim: #0068361a;
+    --bad: #c81e3a;
+    --bad-dim: #c81e3a1a;
     --warn: #b8790a;
     --warn-dim: #b8790a1a;
     --radius: 18px;
@@ -60,6 +63,47 @@ html, body {
 
 .glow-a { width: 380px; height: 380px; left: -120px; top: -100px; background: var(--secondary); opacity: 0.16; }
 .glow-b { width: 420px; height: 420px; right: -140px; top: 20%; background: var(--primary); opacity: 0.14; }
+
+.sun {
+    position: absolute;
+    top: -60px;
+    right: -50px;
+    width: 220px;
+    height: 220px;
+    opacity: 0.8;
+}
+
+.sun-disc { fill: var(--warn); opacity: 0.55; }
+.sun-rays { fill: var(--warn); opacity: 0.4; animation: sun-spin 60s linear infinite; transform-origin: 100px 100px; }
+
+@keyframes sun-spin { to { transform: rotate(360deg); } }
+
+.palm {
+    position: absolute;
+    bottom: -8px;
+    width: 130px;
+    height: 190px;
+    opacity: 0.5;
+}
+
+.palm-left { left: 6px; }
+.palm-right { right: 6px; width: 115px; opacity: 0.42; }
+
+.palm-trunk { stroke: var(--primary); fill: none; }
+.palm-frond { fill: var(--primary); }
+.palm-coconut { fill: var(--secondary); }
+
+.palm-crown {
+    transform-origin: 74px 34px;
+    animation: frond-sway 5s ease-in-out infinite;
+}
+
+.palm-right .palm-crown { transform-origin: 66px 32px; animation-delay: -2.4s; }
+
+@keyframes frond-sway {
+    0%, 100% { transform: rotate(-2deg); }
+    50% { transform: rotate(2deg); }
+}
 
 .wave { position: absolute; left: 0; width: 100%; height: 140px; fill: var(--primary); }
 .wave-back { bottom: 0; opacity: 0.08; }
