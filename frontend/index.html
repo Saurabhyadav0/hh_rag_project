@@ -7,29 +7,45 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Archivo+Black&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <div class="scene" aria-hidden="true">
+        <div class="glow glow-a"></div>
+        <div class="glow glow-b"></div>
+        <svg class="wave wave-back" viewBox="0 0 400 60" preserveAspectRatio="none"><path d="M0 34 Q 25 14 50 34 T 100 34 T 150 34 T 200 34 T 250 34 T 300 34 T 350 34 T 400 34 V60 H0 Z"/></svg>
+        <svg class="wave wave-front" viewBox="0 0 400 60" preserveAspectRatio="none"><path d="M0 40 Q 20 24 40 40 T 80 40 T 120 40 T 160 40 T 200 40 T 240 40 T 280 40 T 320 40 T 360 40 T 400 40 V60 H0 Z"/></svg>
+        <span class="spark spark-1">✦</span>
+        <span class="spark spark-2">✦</span>
+        <span class="spark spark-3">✦</span>
+        <span class="spark spark-4">✦</span>
+        <span class="spark spark-5">✦</span>
+    </div>
+
+    <div class="ticker">
+        <div class="ticker-track">
+            <span>VOICE IN · ANSWER OUT ✦ RETRIEVED, NOT RECALLED ✦ #RAGInGoa ✦ GOA · 22 AUG 2026 ✦ SPEAK ANY OF 8 LANGUAGES ✦ </span>
+            <span>VOICE IN · ANSWER OUT ✦ RETRIEVED, NOT RECALLED ✦ #RAGInGoa ✦ GOA · 22 AUG 2026 ✦ SPEAK ANY OF 8 LANGUAGES ✦ </span>
+        </div>
+    </div>
+
     <div class="frame">
         <header class="masthead">
-            <div class="mark">
-                <span class="mark-dot" aria-hidden="true"></span>
-                <span class="mark-text">Voice RAG</span>
-            </div>
+            <h1 class="hero-title">VOICE&nbsp;RAG</h1>
             <p class="masthead-sub">Speak or type a question in English or an Indic language. Every answer is retrieved, not recalled — if the corpus can't support it, the system says so.</p>
-            <div class="masthead-facts">
-                <span class="fact"><strong>Hybrid retrieval</strong> · FAISS + BM25</span>
-                <span class="fact-sep">·</span>
-                <span class="fact"><strong>3-stage guardrails</strong> · input / context / grounding</span>
-                <span class="fact-sep">·</span>
-                <span class="fact"><strong>8 languages verified</strong> · Sarvam STT for voice</span>
+            <div class="step-badges">
+                <span class="step-badge">01 SPEAK OR TYPE</span>
+                <span class="step-badge">02 RETRIEVE + GROUND</span>
+                <span class="step-badge">03 GET A HONEST ANSWER</span>
             </div>
         </header>
 
         <main class="stage">
             <section class="panel input-panel">
+                <div class="panel-kicker"><span class="kicker-num">01</span> SPEAK OR TYPE YOUR QUESTION</div>
+
                 <div class="input-row">
                     <button id="recordBtn" class="mic-toggle" type="button" aria-pressed="false">
                         <span class="mic-ring" aria-hidden="true"></span>
@@ -79,6 +95,8 @@
             </section>
 
             <section id="resultCard" class="panel result-panel hidden">
+                <div class="panel-kicker"><span class="kicker-num">02</span> YOUR ANSWER</div>
+
                 <div class="result-top">
                     <span id="statusPill" class="pill">—</span>
                     <div id="traceBar" class="trace-bar" role="img" aria-label="Latency breakdown"></div>
@@ -119,8 +137,9 @@
         </main>
 
         <section class="bench">
+            <div class="panel-kicker"><span class="kicker-num">03</span> MEASURED, NOT CLAIMED</div>
             <div class="bench-head">
-                <h2>Measured latency</h2>
+                <h2>Latency</h2>
                 <span class="bench-note">200ms budget · full pipeline · <span id="benchN">20</span> queries, 1 pass each</span>
             </div>
             <div class="bench-grid">
@@ -145,7 +164,7 @@
         </section>
 
         <footer class="foot">
-            <span>Sarvam STT · FAISS + BM25 hybrid retrieval · input / context / grounding guardrails</span>
+            <span>Sarvam STT · FAISS + BM25 hybrid retrieval · input / context / grounding guardrails · #RAGInGoa</span>
         </footer>
     </div>
 
