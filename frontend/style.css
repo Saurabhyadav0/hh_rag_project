@@ -81,13 +81,13 @@ html, body {
 .palm {
     position: absolute;
     bottom: -8px;
-    width: 130px;
-    height: 190px;
+    width: 160px;
+    height: 260px;
     opacity: 0.5;
 }
 
 .palm-left { left: 6px; }
-.palm-right { right: 6px; width: 115px; opacity: 0.42; }
+.palm-right { right: 6px; width: 140px; height: 240px; opacity: 0.42; }
 
 .palm-trunk { stroke: var(--primary); fill: none; }
 .palm-frond { fill: var(--primary); }
@@ -138,8 +138,9 @@ html, body {
     border-bottom: 2px solid var(--ink);
     overflow: hidden;
     padding: 7px 0;
-    transform: rotate(-0.4deg);
-    transform-origin: left;
+    margin-top: 22px;
+    transform: rotate(-0.3deg);
+    transform-origin: center;
 }
 
 .ticker-track {
