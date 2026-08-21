@@ -42,6 +42,7 @@
                         <span id="micLabel">Tap to speak</span>
                         <span id="micTimer" class="mic-timer hidden">00:00</span>
                     </div>
+                    <canvas id="micWave" class="mic-wave hidden" width="240" height="36" aria-hidden="true"></canvas>
                 </div>
 
                 <div class="rule"><span>or type in any script</span></div>
@@ -92,7 +93,18 @@
                     <span id="transcriptText"></span>
                 </div>
 
-                <p id="answerText" class="answer"></p>
+                <div class="answer-row">
+                    <p id="answerText" class="answer"></p>
+                    <button id="copyBtn" class="copy-btn hidden" type="button" aria-label="Copy answer" title="Copy answer">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="copy-icon">
+                            <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/>
+                            <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" stroke="currentColor" stroke-width="1.6"/>
+                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
 
                 <div id="sourcesSection" class="sources hidden">
                     <button id="sourcesToggle" class="sources-toggle" type="button" aria-expanded="false">

@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const transcriptRow = document.getElementById('transcriptRow');
     const transcriptText = document.getElementById('transcriptText');
     const answerText = document.getElementById('answerText');
+    const copyBtn = document.getElementById('copyBtn');
     const sourcesSection = document.getElementById('sourcesSection');
     const sourcesToggle = document.getElementById('sourcesToggle');
     const sourcesLabel = document.getElementById('sourcesLabel');
@@ -70,6 +71,47 @@ document.addEventListener('DOMContentLoaded', () => {
     let startTime = 0;
     let timerInterval = null;
 
+    // --- Live waveform visualizer (real mic input via Web Audio API, not
+    // decorative -- it reflects actual input level per frequency band).
+    const micWave = document.getElementById('micWave');
+    const waveCtx = micWave.getContext('2d');
+    let audioCtx = null;
+    let analyser = null;
+    let waveRAF = null;
+
+    function startWaveform(stream) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const w = micWave.width, h = micWave.height;
+        const barCount = data.length;
+        const barWidth = w / barCount;
+
+        function draw() {
+            analyser.getByteFrequencyData(data);
+            waveCtx.clearRect(0, 0, w, h);
+            waveCtx.fillStyle = '#f0a83a';
+            for (let i = 0; i < barCount; i++) {
+                const barH = Math.max(2, (data[i] / 255) * h);
+                waveCtx.fillRect(i * barWidth, (h - barH) / 2, Math.max(1, barWidth - 2), barH);
+            }
+            waveRAF = requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    function stopWaveform() {
+        if (waveRAF) cancelAnimationFrame(waveRAF);
+        waveRAF = null;
+        if (audioCtx) {
+            audioCtx.close().catch(() => {});
+            audioCtx = null;
+        }
+        waveCtx.clearRect(0, 0, micWave.width, micWave.height);
+    }
+
     // --- Voice recording ---
 
     recordBtn.addEventListener('click', async () => {
@@ -88,11 +130,13 @@ document.addEventListener('DOMContentLoaded', () => {
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = async () => {
                 stream.getTracks().forEach((t) => t.stop());
+                stopWaveform();
                 setRecording(false);
                 const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
                 await sendVoiceQuery(blob);
             };
             mediaRecorder.start();
+            startWaveform(stream);
             setRecording(true);
         } catch (err) {
             alert(`Microphone access error: ${err.message}. Check browser permissions.`);
@@ -105,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (on) {
             micLabel.textContent = 'Tap to stop';
             micTimer.classList.remove('hidden');
+            micWave.classList.remove('hidden');
             startTime = Date.now();
             timerInterval = setInterval(() => {
                 const s = Math.floor((Date.now() - startTime) / 1000);
@@ -113,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             micLabel.textContent = 'Tap to speak';
             micTimer.classList.add('hidden');
+            micWave.classList.add('hidden');
             clearInterval(timerInterval);
         }
     }
@@ -238,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         transcriptRow.classList.add('hidden');
         answerText.textContent = msg;
         answerText.classList.add('loading-dots');
+        copyBtn.classList.add('hidden');
         sourcesSection.classList.add('hidden');
     }
 
@@ -268,8 +315,20 @@ document.addEventListener('DOMContentLoaded', () => {
         answerText.classList.remove('fade-in');
         void answerText.offsetWidth;
         answerText.classList.add('fade-in');
+        copyBtn.classList.toggle('hidden', !answer);
+        copyBtn.classList.remove('copied');
         renderSources(sources);
     }
+
+    copyBtn.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(answerText.textContent);
+            copyBtn.classList.add('copied');
+            setTimeout(() => copyBtn.classList.remove('copied'), 1500);
+        } catch (err) {
+            // Clipboard API can be unavailable (e.g. insecure context); fail silently.
+        }
+    });
 
     function renderTrace(latency) {
         traceBar.innerHTML = '';
@@ -338,6 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
         transcriptRow.classList.add('hidden');
         answerText.classList.remove('loading-dots');
         answerText.textContent = msg;
+        copyBtn.classList.add('hidden');
         sourcesSection.classList.add('hidden');
     }
 
