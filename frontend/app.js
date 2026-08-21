@@ -216,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
         as: [
             { text: 'কর্পোরেশন কি?', label: 'কর্পোরেশন কি?' },
-            { text: 'কৰ্পোৰেচন কি?', label: 'কৰ্পোৰেচন কি?' },
         ],
         hinglish: [
             { text: 'corporation kya h', label: 'corporation kya h' },

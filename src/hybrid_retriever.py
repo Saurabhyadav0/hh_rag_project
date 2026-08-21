@@ -27,11 +27,22 @@ BEGINNER EXPLANATION OF SCORE NORMALIZATION & HYBRID FUSION:
 --------------------------------------------------------------------------------
 """
 
+import re
 import time
 from typing import List, Dict, Any, Optional
 from vector_store import FAISSVectorStore
 from embeddings import MultilingualEmbedder
 from bm25_store import BM25Store
+
+# A chunk needs at least this many word-like tokens (any script) to carry
+# enough information to actually answer a question. Below this, it's the
+# kind of formatting/dictionary-entry fragment ("{Informal}. come. Verb.",
+# ". .") that occasionally scores spuriously high against short queries.
+MIN_SUBSTANTIVE_WORDS = 5
+
+
+def is_substantive_chunk(text: str) -> bool:
+    return len(re.findall(r"\w+", text or "", flags=re.UNICODE)) >= MIN_SUBSTANTIVE_WORDS
 
 
 def min_max_normalize(scores_dict: Dict[str, float]) -> Dict[str, float]:
@@ -128,16 +139,27 @@ class HybridRetriever:
         raw_faiss_scores: Dict[str, float] = {}
         raw_bm25_scores: Dict[str, float] = {}
 
-        # Collect FAISS candidates
+        # Collect FAISS candidates. Near-empty chunks (dictionary/format
+        # artifacts like "{Informal}. come. Verb." or ". .") are excluded
+        # here rather than at index-build time: they were observed getting
+        # a spuriously high raw cosine similarity (0.665) against a short
+        # query purely because both are short, low-information text --
+        # nothing to do with topical relevance. A chunk with almost no
+        # actual words can't meaningfully answer anything, so it's not a
+        # useful retrieval candidate regardless of its score.
         for match in faiss_candidates:
             meta = match["metadata"]
+            if not is_substantive_chunk(meta.get("text", "")):
+                continue
             cid = meta.get("chunk_id", f"chunk_{match['vector_id']}")
             candidate_map[cid] = meta
             raw_faiss_scores[cid] = match["score"]
 
-        # Collect BM25 candidates
+        # Collect BM25 candidates (same filter)
         for match in bm25_candidates:
             meta = match["metadata"]
+            if not is_substantive_chunk(meta.get("text", "")):
+                continue
             cid = meta.get("chunk_id", f"chunk_{match['vector_id']}")
             candidate_map[cid] = meta
             raw_bm25_scores[cid] = match["score"]
