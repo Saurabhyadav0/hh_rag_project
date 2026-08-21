@@ -38,15 +38,15 @@ if hasattr(sys.stdout, 'reconfigure'):
 # distinct bypass: it doesn't ask to reveal or override rules explicitly, it
 # just tries to substitute a new task for the original one.
 OFF_TOPIC_PATTERNS = [
-    r"\b(write|compose|create|generate)\s+.*(poem|song|story|essay|joke|game|script|code|program)\b",
+    r"\b(write|compose|create|generate)\s+.*(poem|song|story|essay|joke|game|script|code|program|function)\b",
     r"\b(tell|give)\s+me\s+.*(joke|riddle|story|poem)\b",
     r"\b(ignore|disregard|bypass|forget)\s+.*(previous|prior|above|system|prompt|instruction)",
     r"\b(forget|ignore)\s+.*(instead|and\s+(instead\s+)?(just\s+)?(tell|give|do|say))\b",
-    r"\breveal\s+.*(system\s+prompt|instructions)",
+    r"\b(reveal|show|print|display|output|repeat)\s+.*(system\s+prompt|your\s+instructions|the\s+instructions)",
     r"\byou\s+are\s+now\s+(a|an|the)\b",
     r"\bact\s+as\s+(if\s+you|a\s+jailbroken|an?\s+unrestricted)\b",
     r"\b(play|start)\s+(a\s+)?game\b",
-    r"\b(python|javascript|c\+\+|java)\s+code\b"
+    r"\b(python|javascript|c\+\+|java)\s+(code|function|script|program)\b"
 ]
 
 # --- Configurable Basic Safety Patterns ---
@@ -57,7 +57,9 @@ OFF_TOPIC_PATTERNS = [
 UNSAFE_PATTERNS = [
     r"\b(make|build|create|manufacture|construct\w*)\s+.*(bomb|weapon|explosive|poison|harmful)\b",
     r"\b(hack|crack|breach|exploit)\s+.*(system|password|account)\b",
-    r"\b(how\s+to\s+suicide|self-harm|kill)\b",
+    r"\b(how\s+to|best\s+way\s+to|ways?\s+to)\s+(commit\s+)?suicide\b",
+    r"\bself[\s-]harm\b",
+    r"\bkill\s+(myself|yourself|himself|herself|themselves)\b",
     r"\b(illegal|stolen|dangerous\s+weapon)\b",
     r"\b(for\s+(a|my)\s+(story|novel|movie|script|game|thriller|character)).{0,60}"
     r"\b(describe|explain|detail|show|write)\b.{0,40}"
@@ -89,6 +91,17 @@ class InputGuardrail:
             }
 
         q_clean = query.strip()
+
+        # A query made only of punctuation/symbols ("?", "...") has no
+        # actual question in it -- letting it through wastes a retrieval
+        # call on nothing and can coincidentally "answer" from whatever
+        # scores highest by default.
+        if not re.search(r"\w", q_clean, flags=re.UNICODE):
+            return {
+                "allowed": False,
+                "reason": "Query contains no actual words to search for.",
+                "category": "invalid"
+            }
 
         # Check safety violations
         for pattern in self.unsafe_patterns:
