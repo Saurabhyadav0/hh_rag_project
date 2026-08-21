@@ -1,288 +1,245 @@
 /**
  * frontend/app.js
- * Browser Client JavaScript for Voice-Enabled Multilingual RAG Application.
- * Handles browser microphone recording via MediaRecorder API, text input fallback,
- * API requests to FastAPI backend (/api/voice, /api/text), and dynamic UI rendering.
+ * Client for the voice/text RAG UI. Talks to /api/voice and /api/text,
+ * renders the guardrail status, a proportional latency trace, the answer,
+ * and retrieved sources.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
     const recordBtn = document.getElementById('recordBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const recordingStatus = document.getElementById('recordingStatus');
-    const timerDisplay = document.getElementById('timer');
+    const micLabel = document.getElementById('micLabel');
+    const micTimer = document.getElementById('micTimer');
     const textForm = document.getElementById('textForm');
     const queryInput = document.getElementById('queryInput');
-    const submitTextBtn = document.getElementById('submitTextBtn');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const loadingMsg = document.getElementById('loadingMsg');
-    const resultsSection = document.getElementById('resultsSection');
+    const resultCard = document.getElementById('resultCard');
 
-    // Result Display Elements
-    const statusBadge = document.getElementById('statusBadge');
-    const groundedBadge = document.getElementById('groundedBadge');
-    const providerBadge = document.getElementById('providerBadge');
-    const latStt = document.getElementById('latStt');
-    const latRet = document.getElementById('latRet');
-    const latTotal = document.getElementById('latTotal');
-    const transcriptBox = document.getElementById('transcriptBox');
+    const statusPill = document.getElementById('statusPill');
+    const traceBar = document.getElementById('traceBar');
+    const totalMs = document.getElementById('totalMs');
+    const transcriptRow = document.getElementById('transcriptRow');
     const transcriptText = document.getElementById('transcriptText');
     const answerText = document.getElementById('answerText');
-    const sourceCount = document.getElementById('sourceCount');
-    const sourcesContainer = document.getElementById('sourcesContainer');
+    const sourcesSection = document.getElementById('sourcesSection');
+    const sourcesToggle = document.getElementById('sourcesToggle');
+    const sourcesLabel = document.getElementById('sourcesLabel');
+    const sourcesList = document.getElementById('sourcesList');
 
-    // MediaRecorder Variables
+    // These are real numbers from the last committed run of
+    // src/benchmark_e2e_latency.py (see data/e2e_latency_benchmark.txt),
+    // not a live feed -- rerun the script and update these after any change
+    // that could affect retrieval or generation latency.
+    const BENCH = { p50: 28.05, p70: 40.46, p100: 573.31, n: 20, withinPct: 95.0 };
+    document.getElementById('benchP50').textContent = `${BENCH.p50} ms`;
+    document.getElementById('benchP70').textContent = `${BENCH.p70} ms`;
+    document.getElementById('benchP100').textContent = `${BENCH.p100} ms`;
+    document.getElementById('benchPct').textContent = `${BENCH.withinPct}%`;
+    document.getElementById('benchN').textContent = BENCH.n;
+
     let mediaRecorder = null;
     let audioChunks = [];
+    let recording = false;
     let startTime = 0;
     let timerInterval = null;
 
-    // --- 1. Microphone Recording Logic ---
+    // --- Voice recording ---
+
     recordBtn.addEventListener('click', async () => {
+        if (recording) {
+            mediaRecorder.stop();
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             audioChunks = [];
-            
-            // Prefer webm or wav format
             let mimeType = 'audio/webm';
             if (!MediaRecorder.isTypeSupported('audio/webm')) {
                 mimeType = MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
             }
-
             mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
-            };
-
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = async () => {
-                // Stop audio tracks
-                stream.getTracks().forEach(track => track.stop());
-
-                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
-                await sendVoiceQuery(audioBlob);
+                stream.getTracks().forEach((t) => t.stop());
+                setRecording(false);
+                const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                await sendVoiceQuery(blob);
             };
-
             mediaRecorder.start();
-            
-            // UI Updates
-            recordBtn.disabled = true;
-            stopBtn.disabled = false;
-            recordingStatus.classList.remove('hidden');
+            setRecording(true);
+        } catch (err) {
+            alert(`Microphone access error: ${err.message}. Check browser permissions.`);
+        }
+    });
 
-            // Timer
+    function setRecording(on) {
+        recording = on;
+        recordBtn.setAttribute('aria-pressed', String(on));
+        if (on) {
+            micLabel.textContent = 'Tap to stop';
+            micTimer.classList.remove('hidden');
             startTime = Date.now();
             timerInterval = setInterval(() => {
-                const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
-                const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
-                const secs = String(elapsedSec % 60).padStart(2, '0');
-                timerDisplay.textContent = `${mins}:${secs}`;
+                const s = Math.floor((Date.now() - startTime) / 1000);
+                micTimer.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
             }, 1000);
-
-        } catch (err) {
-            alert(`Microphone access error: ${err.message}. Please check browser permissions.`);
-        }
-    });
-
-    stopBtn.addEventListener('click', () => {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
+        } else {
+            micLabel.textContent = 'Tap to speak';
+            micTimer.classList.add('hidden');
             clearInterval(timerInterval);
-            recordBtn.disabled = false;
-            stopBtn.disabled = true;
-            recordingStatus.classList.add('hidden');
-        }
-    });
-
-    // --- 2. Voice API Request (/api/voice) ---
-    async function sendVoiceQuery(audioBlob) {
-        showLoading("Transcribing voice & searching RAG knowledge base...");
-        hideResults();
-
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'recording.webm');
-
-        try {
-            const response = await fetch('/api/voice', {
-                method: 'POST',
-                body: formData
-            });
-
-            let data = {};
-            const contentType = response.headers.get("content-type") || "";
-            if (contentType.includes("application/json")) {
-                data = await response.json();
-            } else {
-                hideLoading();
-                showError(`Server HTTP ${response.status}: Voice API unavailable or starting up.`);
-                return;
-            }
-
-            hideLoading();
-            renderVoiceResult(data);
-
-        } catch (err) {
-            hideLoading();
-            showError("Network error: Could not reach the voice API server.");
         }
     }
 
-    // --- 3. Text API Form Submit (/api/text) ---
+    async function sendVoiceQuery(blob) {
+        setBusy('Transcribing and searching…');
+        const form = new FormData();
+        form.append('file', blob, 'recording.webm');
+        try {
+            const res = await fetch('/api/voice', { method: 'POST', body: form });
+            const data = await safeJson(res);
+            if (!data) return showError('The server did not return a valid response.');
+            renderVoice(data);
+        } catch (err) {
+            showError('Network error: could not reach the API.');
+        }
+    }
+
+    // --- Text query ---
+
     textForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const query = queryInput.value.trim();
         if (!query) return;
-
-        showLoading("Processing text query through RAG pipeline...");
-        hideResults();
-
+        setBusy('Searching…');
         try {
-            const response = await fetch('/api/text', {
+            const res = await fetch('/api/text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query })
+                body: JSON.stringify({ query }),
             });
-
-            let data = {};
-            const contentType = response.headers.get("content-type") || "";
-            if (contentType.includes("application/json")) {
-                data = await response.json();
-            } else {
-                const textErr = await response.text();
-                hideLoading();
-                showError(`Server HTTP ${response.status}: Render backend is starting up or unavailable.`);
-                return;
-            }
-
-            hideLoading();
-            if (!response.ok) {
-                showError(data.detail || data.guardrail_reason || `Server returned status ${response.status}`);
-            } else {
-                renderTextResult(data);
-            }
-
+            const data = await safeJson(res);
+            if (!data) return showError('The server did not return a valid response.');
+            renderText(data);
         } catch (err) {
-            hideLoading();
-            showError(`Request failed: ${err.message || "Could not reach API server."}`);
+            showError(`Request failed: ${err.message || 'could not reach the API.'}`);
         }
     });
 
-    // Sample Query Pills Click Handler
-    document.querySelectorAll('.sample-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            const sampleQ = pill.getAttribute('data-query');
-            if (sampleQ) {
-                queryInput.value = sampleQ;
-                textForm.dispatchEvent(new Event('submit'));
-            }
+    document.querySelectorAll('.chip[data-query]').forEach((chip) => {
+        chip.addEventListener('click', () => {
+            queryInput.value = chip.getAttribute('data-query');
+            textForm.dispatchEvent(new Event('submit'));
         });
     });
 
-    // --- 4. Render Voice Results ---
-    function renderVoiceResult(data) {
-        resultsSection.classList.remove('hidden');
+    async function safeJson(res) {
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return null;
+        return res.json();
+    }
 
-        // Status & Grounded Badges
-        updateStatusBadges(data.status, data.grounded, data.language);
+    // --- Rendering ---
 
-        // Latencies
-        const lat = data.latency || {};
-        latStt.textContent = `${lat.stt_ms || 0}ms`;
-        latRet.textContent = `${lat.rag_ms || 0}ms`;
-        latTotal.textContent = `${lat.total_ms || 0}ms`;
+    function setBusy(msg) {
+        resultCard.classList.remove('hidden');
+        statusPill.textContent = '…';
+        statusPill.className = 'pill';
+        traceBar.innerHTML = '';
+        totalMs.textContent = '';
+        transcriptRow.classList.add('hidden');
+        answerText.textContent = msg;
+        sourcesSection.classList.add('hidden');
+    }
 
-        // Transcript
+    function renderVoice(data) {
+        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.rag_details?.retrieved_context || []);
         if (data.transcript) {
-            transcriptBox.classList.remove('hidden');
+            transcriptRow.classList.remove('hidden');
             transcriptText.textContent = data.transcript;
-        } else {
-            transcriptBox.classList.add('hidden');
         }
-
-        // Answer
-        answerText.textContent = data.answer || "No answer generated.";
-
-        // Retrieved Sources
-        const rag = data.rag_details || {};
-        renderSources(rag.retrieved_context || []);
     }
 
-    // --- 5. Render Text Results ---
-    function renderTextResult(data) {
-        resultsSection.classList.remove('hidden');
-        transcriptBox.classList.add('hidden');
-
-        // Status & Grounded Badges
-        updateStatusBadges(data.status, data.grounded, data.metadata?.generator_provider);
-
-        // Latencies
-        const lat = data.latency || {};
-        latStt.textContent = `0ms (Text Query)`;
-        latRet.textContent = `${lat.retrieval_ms || 0}ms`;
-        latTotal.textContent = `${lat.total_ms || 0}ms`;
-
-        // Answer
-        answerText.textContent = data.answer || "No answer generated.";
-
-        // Retrieved Sources
-        renderSources(data.retrieved_context || []);
+    function renderText(data) {
+        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.retrieved_context || []);
     }
 
-    // --- Helper Functions ---
-    function updateStatusBadges(status, grounded, provider) {
-        statusBadge.textContent = (status || 'UNKNOWN').toUpperCase();
-        statusBadge.className = `badge badge-status ${status}`;
+    function renderCommon(status, grounded, latency, answer, sources) {
+        resultCard.classList.remove('hidden');
 
-        groundedBadge.textContent = grounded ? 'GROUNDED' : 'UNGROUNDED / FALLBACK';
-        groundedBadge.className = `badge badge-grounded ${grounded}`;
+        const label = (status || 'unknown').replace(/_/g, ' ');
+        statusPill.textContent = label;
+        statusPill.className = `pill ${status || ''}`;
 
-        providerBadge.textContent = `Info: ${provider || 'Local'}`;
+        renderTrace(latency);
+        totalMs.textContent = `${Math.round(latency.total_ms || 0)} ms`;
+
+        answerText.textContent = answer || 'No answer generated.';
+        renderSources(sources);
+    }
+
+    function renderTrace(latency) {
+        traceBar.innerHTML = '';
+        const stages = [
+            ['input_guardrail', latency.input_guardrail_ms || 0],
+            ['retrieval', latency.retrieval_ms || 0],
+            ['generation', latency.generation_ms || 0],
+            ['grounding', latency.grounding_ms || 0],
+        ];
+        const total = stages.reduce((sum, [, v]) => sum + v, 0);
+        if (total <= 0) return;
+        stages.forEach(([name, ms]) => {
+            if (ms <= 0) return;
+            const seg = document.createElement('span');
+            seg.className = `trace-seg ${name}`;
+            seg.style.width = `${(ms / total) * 100}%`;
+            seg.title = `${name.replace('_', ' ')}: ${ms.toFixed(1)} ms`;
+            traceBar.appendChild(seg);
+        });
     }
 
     function renderSources(sources) {
-        sourcesContainer.innerHTML = '';
-        sourceCount.textContent = sources.length;
-
         if (!sources || sources.length === 0) {
-            sourcesContainer.innerHTML = '<p class="subtitle">No knowledge sources retrieved for this query.</p>';
+            sourcesSection.classList.add('hidden');
             return;
         }
-
-        sources.forEach((src, idx) => {
-            const card = document.createElement('div');
-            card.className = 'source-card';
-            card.innerHTML = `
-                <div class="source-card-header">
-                    <span>Rank #${idx + 1} • Chunk ID: ${src.chunk_id || 'N/A'}</span>
-                    <span>Similarity Score: ${src.score ? src.score.toFixed(4) : 'N/A'}</span>
+        sourcesSection.classList.remove('hidden');
+        sourcesLabel.textContent = `${sources.length} source${sources.length === 1 ? '' : 's'}`;
+        sourcesList.innerHTML = '';
+        sources.forEach((src, i) => {
+            const item = document.createElement('div');
+            item.className = 'source-item';
+            const score = typeof src.score === 'number' ? src.score.toFixed(4) : 'n/a';
+            item.innerHTML = `
+                <div class="source-item-head">
+                    <span>#${i + 1} · ${escapeHtml(src.chunk_id || 'unknown')}</span>
+                    <span>score ${score}</span>
                 </div>
-                <p class="source-card-text">${src.text}</p>
+                <p class="source-item-text">${escapeHtml(src.text || '')}</p>
             `;
-            sourcesContainer.appendChild(card);
+            sourcesList.appendChild(item);
         });
+        sourcesList.classList.add('hidden');
+        sourcesToggle.setAttribute('aria-expanded', 'false');
     }
 
-    function showLoading(msg) {
-        loadingMsg.textContent = msg;
-        loadingOverlay.classList.remove('hidden');
+    sourcesToggle.addEventListener('click', () => {
+        const open = sourcesToggle.getAttribute('aria-expanded') === 'true';
+        sourcesToggle.setAttribute('aria-expanded', String(!open));
+        sourcesList.classList.toggle('hidden', open);
+    });
+
+    function showError(msg) {
+        resultCard.classList.remove('hidden');
+        statusPill.textContent = 'error';
+        statusPill.className = 'pill rejected';
+        traceBar.innerHTML = '';
+        totalMs.textContent = '';
+        transcriptRow.classList.add('hidden');
+        answerText.textContent = msg;
+        sourcesSection.classList.add('hidden');
     }
 
-    function hideLoading() {
-        loadingOverlay.classList.add('hidden');
-    }
-
-    function hideResults() {
-        resultsSection.classList.add('hidden');
-    }
-
-    function showError(errMsg) {
-        resultsSection.classList.remove('hidden');
-        statusBadge.textContent = "ERROR";
-        statusBadge.className = "badge badge-status rejected";
-        answerText.textContent = errMsg;
-        sourcesContainer.innerHTML = '';
-        sourceCount.textContent = '0';
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 });

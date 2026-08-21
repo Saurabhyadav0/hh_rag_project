@@ -3,194 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hacker House Goa 2026 — Multilingual Voice RAG</title>
-    
-    <!-- Google Fonts: Outfit & Inter & Space Grotesk -->
+    <title>Voice RAG — Multilingual Grounded Retrieval</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <!-- Background Overlay -->
-    <div class="bg-overlay"></div>
-
-    <div class="app-container">
-        <!-- Top Brand Header with Banner Logo -->
-        <header class="app-header glass-header">
-            <div class="logo-wrapper">
-                <img src="/static/logo.png" alt="Hacker House Goa 2026 — 2:47 PM Studio" class="header-logo-img">
+    <div class="frame">
+        <header class="masthead">
+            <div class="mark">
+                <span class="mark-dot" aria-hidden="true"></span>
+                <span class="mark-text">Voice RAG</span>
             </div>
-            
-            <div class="header-tagline">
-                <span class="badge-tag">GOA, INDIA · 28–31 OCT 2026</span>
-                <span class="badge-tag tag-pink">VOICE-ENABLED MULTILINGUAL RAG</span>
+            <p class="masthead-sub">Speak or type a question in English or an Indic language. Every answer is retrieved, not recalled — if the corpus can't support it, the system says so.</p>
+            <div class="masthead-facts">
+                <span class="fact"><strong>Hybrid retrieval</strong> · FAISS + BM25</span>
+                <span class="fact-sep">·</span>
+                <span class="fact"><strong>3-stage guardrails</strong> · input / context / grounding</span>
+                <span class="fact-sep">·</span>
+                <span class="fact"><strong>14 languages</strong> · Sarvam STT</span>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Voice & Text Input Panel -->
-            <section class="input-panel card glass-card">
-                <div class="panel-header">
-                    <h2>🎙️ Speak or Type Your Question</h2>
-                    <span class="multilingual-badge">14 Indic Languages Supported</span>
-                </div>
-                
-                <!-- Voice Controls -->
-                <div class="voice-controls">
-                    <button id="recordBtn" class="btn btn-gold btn-voice">
-                        <span class="mic-icon">🎙️</span>
-                        <span class="btn-text">Start Voice Recording</span>
+        <main class="stage">
+            <section class="panel input-panel">
+                <div class="input-row">
+                    <button id="recordBtn" class="mic-toggle" type="button" aria-pressed="false">
+                        <span class="mic-ring" aria-hidden="true"></span>
+                        <svg class="mic-glyph" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
                     </button>
-                    <button id="stopBtn" class="btn btn-pink btn-voice" disabled>
-                        <span class="stop-icon">⏹️</span>
-                        <span class="btn-text">Stop & Submit Voice</span>
-                    </button>
-                </div>
-
-                <div id="recordingStatus" class="recording-status hidden">
-                    <span class="pulse-dot"></span> Recording Live Voice Audio... <span id="timer" class="timer-badge">00:00</span>
-                </div>
-
-                <div class="divider"><span>OR TYPE IN ANY SCRIPT / LANGUAGE</span></div>
-
-                <!-- Text Query Input -->
-                <form id="textForm" class="text-input-form">
-                    <div class="input-group">
-                        <input type="text" id="queryInput" placeholder="Type in Hindi, Hinglish, Bengali, Tamil, Gujarati, English..." autocomplete="off">
-                        <button type="submit" id="submitTextBtn" class="btn btn-submit">
-                            <span>Ask Query</span> ➔
-                        </button>
+                    <div class="mic-caption">
+                        <span id="micLabel">Tap to speak</span>
+                        <span id="micTimer" class="mic-timer hidden">00:00</span>
                     </div>
+                </div>
+
+                <div class="rule"><span>or type in any script</span></div>
+
+                <form id="textForm" class="text-row">
+                    <input type="text" id="queryInput" placeholder="निगम क्या है? · what is a certified B corp? · কর্পোরেশন কি?" autocomplete="off">
+                    <button type="submit" class="ask-btn" aria-label="Ask">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                 </form>
 
-                <!-- Quick Sample Query Pills -->
-                <div class="sample-queries">
-                    <span class="sample-title">Sample Queries:</span>
-                    <button type="button" class="sample-pill" data-query="निगम क्या है?">🇮🇳 निगम क्या है?</button>
-                    <button type="button" class="sample-pill" data-query="corporation kya h">🗣️ corporation kya h</button>
-                    <button type="button" class="sample-pill" data-query="what is certified B corps">🌐 Certified B Corp?</button>
-                    <button type="button" class="sample-pill" data-query="কর্পোরেশন কি?">🇧🇩 কর্পোরেশন কি?</button>
-                    <button type="button" class="sample-pill" data-query="who wrote the obligation to endure">🌿 Obligation to Endure?</button>
+                <div class="chips">
+                    <button type="button" class="chip" data-query="निगम क्या है?">निगम क्या है?</button>
+                    <button type="button" class="chip" data-query="corporation kya h">corporation kya h</button>
+                    <button type="button" class="chip" data-query="what is certified B corps">certified B corp?</button>
+                    <button type="button" class="chip" data-query="কর্পোরেশন কি?">কর্পোরেশন কি?</button>
+                    <button type="button" class="chip" data-query="how to make a bomb at home">try a refusal ↦</button>
                 </div>
             </section>
 
-            <!-- Loading Spinner & Overlay -->
-            <div id="loadingOverlay" class="loading-overlay glass-card hidden">
-                <div class="spinner-wrapper">
-                    <div class="neon-spinner"></div>
-                </div>
-                <p id="loadingMsg" class="loading-text">Processing query through Sarvam STT & Vector RAG Pipeline...</p>
-            </div>
-
-            <!-- Output Results Section -->
-            <section id="resultsSection" class="results-panel card glass-card hidden">
-                <!-- Status & Latency Bar -->
-                <div class="status-header">
-                    <div class="status-badges">
-                        <span id="statusBadge" class="badge badge-status">ANSWERED</span>
-                        <span id="groundedBadge" class="badge badge-grounded">GROUNDED</span>
-                        <span id="providerBadge" class="badge badge-info">Groq (groq/compound-mini)</span>
-                    </div>
-                    <div id="latencyBadge" class="latency-bar">
-                        <span class="latency-item">STT: <strong id="latStt">0ms</strong></span>
-                        <span class="latency-item">Retrieval: <strong id="latRet">0ms</strong></span>
-                        <span class="latency-item">Total: <strong id="latTotal">0ms</strong></span>
-                    </div>
+            <section id="resultCard" class="panel result-panel hidden">
+                <div class="result-top">
+                    <span id="statusPill" class="pill">—</span>
+                    <div id="traceBar" class="trace-bar" role="img" aria-label="Latency breakdown"></div>
+                    <span id="totalMs" class="total-ms">0 ms</span>
                 </div>
 
-                <!-- Spoken Transcript Box -->
-                <div id="transcriptBox" class="result-box transcript-box hidden">
-                    <h3>🗣️ Spoken Transcript / Question</h3>
-                    <p id="transcriptText" class="transcript-content"></p>
+                <div id="transcriptRow" class="transcript-row hidden">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="transcript-icon">
+                        <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                        <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    </svg>
+                    <span id="transcriptText"></span>
                 </div>
 
-                <!-- Answer Output Box -->
-                <div class="result-box answer-box">
-                    <h3>💡 Grounded Answer</h3>
-                    <div id="answerText" class="answer-content"></div>
-                </div>
+                <p id="answerText" class="answer"></p>
 
-                <!-- Retrieved Context Chunks Accordion (Rendered Above Latency Analytics) -->
-                <div class="result-box sources-box" style="margin-top: 20px;">
-                    <h3 style="color: #ffe500;">📚 Retrieved Knowledge Sources (<span id="sourceCount">0</span>)</h3>
-                    <div id="sourcesContainer" class="sources-list"></div>
-                </div>
-
-                <!-- Latency Evaluation & Analytics Section (Rendered Below Knowledge Sources) -->
-                <div class="analytics-panel card glass-card" style="margin-top: 20px;">
-                    <div class="analytics-header">
-                        <h2>📊 Latency Evaluation & Percentile Analytics</h2>
-                        <span class="target-badge">Sub-200ms Target Benchmark: PASSED ✅</span>
-                    </div>
-
-                    <div class="metrics-grid">
-                        <div class="metric-card p50-card">
-                            <div class="metric-icon">⚡</div>
-                            <div class="metric-info">
-                                <span class="metric-label">P50 (Median Latency)</span>
-                                <span class="metric-value">146.76 ms</span>
-                                <span class="metric-delta">🟢 -53.24 ms under 200ms target</span>
-                            </div>
-                        </div>
-
-                        <div class="metric-card p70-card">
-                            <div class="metric-icon">🚀</div>
-                            <div class="metric-info">
-                                <span class="metric-label">P70 (70th Percentile)</span>
-                                <span class="metric-value">153.67 ms</span>
-                                <span class="metric-delta">🟢 -46.33 ms under 200ms target</span>
-                            </div>
-                        </div>
-
-                        <div class="metric-card p100-card">
-                            <div class="metric-icon">🐢</div>
-                            <div class="metric-info">
-                                <span class="metric-label">P100 (Worst Cold Start)</span>
-                                <span class="metric-value">2086.58 ms</span>
-                                <span class="metric-delta">Initial ONNX Model Fetch</span>
-                            </div>
-                        </div>
-
-                        <div class="metric-card cache-card">
-                            <div class="metric-icon">⚡</div>
-                            <div class="metric-info">
-                                <span class="metric-label">Cache Hit Latency</span>
-                                <span class="metric-value">0.01 ms</span>
-                                <span class="metric-delta">Instant LRU Memory Hit</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Component Latency Breakdown Progress -->
-                    <div class="breakdown-box">
-                        <h4>⏱️ Latency Component Breakdown Across Pipeline:</h4>
-                        <div class="progress-item">
-                            <span class="progress-label">Input Guardrail: <strong>< 1.5 ms</strong></span>
-                            <div class="progress-bar"><div class="progress-fill" style="width: 2%;"></div></div>
-                        </div>
-                        <div class="progress-item">
-                            <span class="progress-label">FAISS + BM25 Hybrid Retrieval: <strong>~145 ms</strong></span>
-                            <div class="progress-bar"><div class="progress-fill" style="width: 72%;"></div></div>
-                        </div>
-                        <div class="progress-item">
-                            <span class="progress-label">Groq LPU LLM Generation: <strong>~80 ms</strong></span>
-                            <div class="progress-bar"><div class="progress-fill" style="width: 25%;"></div></div>
-                        </div>
-                        <div class="progress-item">
-                            <span class="progress-label">Grounding Guardrail: <strong>< 2.0 ms</strong></span>
-                            <div class="progress-bar"><div class="progress-fill" style="width: 1%;"></div></div>
-                        </div>
-                    </div>
+                <div id="sourcesSection" class="sources hidden">
+                    <button id="sourcesToggle" class="sources-toggle" type="button" aria-expanded="false">
+                        <span id="sourcesLabel">0 sources</span>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="chevron">
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div id="sourcesList" class="sources-list hidden"></div>
                 </div>
             </section>
         </main>
 
-        <!-- Footer -->
-        <footer class="app-footer">
-            <p>HACKER HOUSE GOA 2026 · 2:47 PM STUDIO · Sarvam STT + FAISS & BM25 Hybrid + Groq LLM + 3-Layer Guardrails</p>
+        <section class="bench">
+            <div class="bench-head">
+                <h2>Measured latency</h2>
+                <span class="bench-note">200ms budget · full pipeline · <span id="benchN">20</span> queries, 1 pass each</span>
+            </div>
+            <div class="bench-grid">
+                <div class="bench-stat">
+                    <span class="bench-label">P50</span>
+                    <span class="bench-value" id="benchP50">—</span>
+                </div>
+                <div class="bench-stat">
+                    <span class="bench-label">P70</span>
+                    <span class="bench-value" id="benchP70">—</span>
+                </div>
+                <div class="bench-stat">
+                    <span class="bench-label">P100</span>
+                    <span class="bench-value" id="benchP100">—</span>
+                </div>
+                <div class="bench-stat">
+                    <span class="bench-label">within budget</span>
+                    <span class="bench-value" id="benchPct">—</span>
+                </div>
+            </div>
+            <p class="bench-source">from <code>data/e2e_latency_benchmark.txt</code>, produced by <code>src/benchmark_e2e_latency.py</code> — rerun any time, not a fixed claim</p>
+        </section>
+
+        <footer class="foot">
+            <span>Sarvam STT · FAISS + BM25 hybrid retrieval · input / context / grounding guardrails</span>
         </footer>
     </div>
 
