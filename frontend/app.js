@@ -152,12 +152,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.querySelectorAll('.chip[data-query]').forEach((chip) => {
-        chip.addEventListener('click', () => {
-            queryInput.value = chip.getAttribute('data-query');
-            textForm.dispatchEvent(new Event('submit'));
+    // --- Language selector ---
+    // The corpus itself is Assamese-source (asm_Beng script); English, Hindi,
+    // and Hinglish queries are answered via the multilingual embedding
+    // model's cross-lingual matching, not because those languages exist as
+    // separate passages. Each entry is a query verified to actually work,
+    // not a promise every phrasing in that language will.
+    const SAMPLE_QUERIES = {
+        en: [
+            { text: 'what is a corporation?', label: 'what is a corporation?' },
+            { text: 'what is certified B corps', label: 'certified B corp?' },
+            { text: 'how to make a bomb at home', label: 'try a refusal ↦' },
+        ],
+        hi: [
+            { text: 'निगम क्या है?', label: 'निगम क्या है?' },
+            { text: 'कॉर्पोरेशन क्या है', label: 'कॉर्पोरेशन क्या है' },
+        ],
+        as: [
+            { text: 'কর্পোরেশন কি?', label: 'কর্পোরেশন কি?' },
+            { text: 'কৰ্পোৰেচন কি?', label: 'কৰ্পোৰেচন কি?' },
+        ],
+        hinglish: [
+            { text: 'corporation kya h', label: 'corporation kya h' },
+            { text: 'corporation kya hai', label: 'corporation kya hai' },
+        ],
+    };
+
+    const langPills = document.querySelectorAll('.lang-pill');
+    const sampleChips = document.getElementById('sampleChips');
+
+    function renderChips(lang) {
+        sampleChips.innerHTML = '';
+        (SAMPLE_QUERIES[lang] || []).forEach((q) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'chip';
+            chip.dataset.query = q.text;
+            chip.textContent = q.label;
+            chip.addEventListener('click', () => {
+                queryInput.value = q.text;
+                textForm.dispatchEvent(new Event('submit'));
+            });
+            sampleChips.appendChild(chip);
+        });
+    }
+
+    langPills.forEach((pill) => {
+        pill.addEventListener('click', () => {
+            langPills.forEach((p) => {
+                p.classList.remove('active');
+                p.setAttribute('aria-checked', 'false');
+            });
+            pill.classList.add('active');
+            pill.setAttribute('aria-checked', 'true');
+            renderChips(pill.dataset.lang);
         });
     });
+
+    renderChips('en');
 
     async function safeJson(res) {
         const ct = res.headers.get('content-type') || '';

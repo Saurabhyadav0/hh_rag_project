@@ -260,11 +260,47 @@ body {
 .ask-btn:active { transform: scale(0.94); }
 .ask-btn svg { width: 20px; height: 20px; }
 
+.lang-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+}
+
+.lang-row-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    margin-right: 4px;
+}
+
+.lang-pill {
+    background: transparent;
+    border: 1px solid var(--line-soft);
+    color: var(--text-faint);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11.5px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.lang-pill:hover { color: var(--text-dim); border-color: var(--line); }
+
+.lang-pill.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 16px;
+    margin-top: 12px;
+    min-height: 30px;
 }
 
 .chip {
