@@ -77,7 +77,12 @@ class RAGPipeline:
 
         # 1. Load Embeddings & Vector Store
         self.embedder = MultilingualEmbedder()
-        
+        # ONNX Runtime pays a one-time session/JIT warm-up cost on its first
+        # inference (measured ~650ms for retrieval that otherwise runs in
+        # 80-140ms). Paying it here, during startup, means the first real
+        # request doesn't blow the 200ms budget instead of every later one.
+        self.embedder.embed_query("warmup", normalize=True)
+
         if not os.path.exists(os.path.join(self.index_dir, "index.faiss")):
             logger.info("FAISS index not found. Building index from sample records...")
             from build_faiss_index import build_index

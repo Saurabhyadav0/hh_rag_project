@@ -5,6 +5,13 @@
  * and retrieved sources.
  */
 
+// API base URL. Empty string means "same origin" (frontend served by the
+// same FastAPI app, e.g. local dev or a single-service deploy). When the
+// frontend is deployed separately (e.g. on Vercel, backend on Fly.io),
+// set window.__API_BASE__ = "https://your-app.fly.dev" in a small inline
+// script tag in index.html before this file loads.
+const API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) || '';
+
 document.addEventListener('DOMContentLoaded', () => {
     const recordBtn = document.getElementById('recordBtn');
     const micLabel = document.getElementById('micLabel');
@@ -28,12 +35,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // src/benchmark_e2e_latency.py (see data/e2e_latency_benchmark.txt),
     // not a live feed -- rerun the script and update these after any change
     // that could affect retrieval or generation latency.
-    const BENCH = { p50: 28.05, p70: 40.46, p100: 573.31, n: 20, withinPct: 95.0 };
-    document.getElementById('benchP50').textContent = `${BENCH.p50} ms`;
-    document.getElementById('benchP70').textContent = `${BENCH.p70} ms`;
-    document.getElementById('benchP100').textContent = `${BENCH.p100} ms`;
-    document.getElementById('benchPct').textContent = `${BENCH.withinPct}%`;
+    const BENCH = { p50: 24.89, p70: 32.79, p100: 62.82, n: 20, withinPct: 100.0 };
     document.getElementById('benchN').textContent = BENCH.n;
+    animateCount(document.getElementById('benchP50'), BENCH.p50, ' ms', 1);
+    animateCount(document.getElementById('benchP70'), BENCH.p70, ' ms', 1);
+    animateCount(document.getElementById('benchP100'), BENCH.p100, ' ms', 1);
+    animateCount(document.getElementById('benchPct'), BENCH.withinPct, '%', 0);
+
+    // --- Entrance choreography: masthead, then input, then bench, in a
+    // quick stagger rather than everything popping in at once.
+    requestAnimationFrame(() => {
+        document.querySelector('.masthead').classList.add('in');
+        document.querySelector('.input-panel').classList.add('in');
+        document.querySelector('.bench').classList.add('in');
+    });
+
+    // --- Count-up animation for a number, e.g. latency stats on load.
+    function animateCount(el, target, suffix, decimals, duration = 700) {
+        if (!el) return;
+        const start = performance.now();
+        function tick(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+            const value = target * eased;
+            el.textContent = `${value.toFixed(decimals)}${suffix}`;
+            if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
 
     let mediaRecorder = null;
     let audioChunks = [];
@@ -93,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const form = new FormData();
         form.append('file', blob, 'recording.webm');
         try {
-            const res = await fetch('/api/voice', { method: 'POST', body: form });
+            const res = await fetch(`${API_BASE}/api/voice`, { method: 'POST', body: form });
             const data = await safeJson(res);
             if (!data) return showError('The server did not return a valid response.');
             renderVoice(data);
@@ -110,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!query) return;
         setBusy('Searching…');
         try {
-            const res = await fetch('/api/text', {
+            const res = await fetch(`${API_BASE}/api/text`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query }),
@@ -138,14 +167,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Rendering ---
 
-    function setBusy(msg) {
+    function revealResultCard() {
         resultCard.classList.remove('hidden');
-        statusPill.textContent = '…';
-        statusPill.className = 'pill';
+        // Retrigger the entrance transition on every new result, not just
+        // the first time the card appears.
+        resultCard.classList.remove('in');
+        void resultCard.offsetWidth; // force reflow so the class removal registers
+        resultCard.classList.add('in');
+    }
+
+    function setBusy(msg) {
+        revealResultCard();
+        statusPill.textContent = '';
+        statusPill.className = 'pill pill-busy';
         traceBar.innerHTML = '';
         totalMs.textContent = '';
         transcriptRow.classList.add('hidden');
         answerText.textContent = msg;
+        answerText.classList.add('loading-dots');
         sourcesSection.classList.add('hidden');
     }
 
@@ -162,16 +201,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCommon(status, grounded, latency, answer, sources) {
-        resultCard.classList.remove('hidden');
+        revealResultCard();
+        answerText.classList.remove('loading-dots');
 
         const label = (status || 'unknown').replace(/_/g, ' ');
         statusPill.textContent = label;
-        statusPill.className = `pill ${status || ''}`;
+        statusPill.className = `pill ${status || ''} pop`;
 
         renderTrace(latency);
-        totalMs.textContent = `${Math.round(latency.total_ms || 0)} ms`;
+        animateCount(totalMs, Math.round(latency.total_ms || 0), ' ms', 0, 500);
 
         answerText.textContent = answer || 'No answer generated.';
+        answerText.classList.remove('fade-in');
+        void answerText.offsetWidth;
+        answerText.classList.add('fade-in');
         renderSources(sources);
     }
 
@@ -185,13 +228,20 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
         const total = stages.reduce((sum, [, v]) => sum + v, 0);
         if (total <= 0) return;
+        const segments = [];
         stages.forEach(([name, ms]) => {
             if (ms <= 0) return;
             const seg = document.createElement('span');
             seg.className = `trace-seg ${name}`;
-            seg.style.width = `${(ms / total) * 100}%`;
+            seg.style.width = '0%';
             seg.title = `${name.replace('_', ' ')}: ${ms.toFixed(1)} ms`;
             traceBar.appendChild(seg);
+            segments.push([seg, (ms / total) * 100]);
+        });
+        // Grow segments from 0 on the next frame so the width change is a
+        // transition rather than appearing fully-formed.
+        requestAnimationFrame(() => {
+            segments.forEach(([seg, pct]) => { seg.style.width = `${pct}%`; });
         });
     }
 
@@ -216,23 +266,24 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             sourcesList.appendChild(item);
         });
-        sourcesList.classList.add('hidden');
+        sourcesList.style.maxHeight = '0px';
         sourcesToggle.setAttribute('aria-expanded', 'false');
     }
 
     sourcesToggle.addEventListener('click', () => {
         const open = sourcesToggle.getAttribute('aria-expanded') === 'true';
         sourcesToggle.setAttribute('aria-expanded', String(!open));
-        sourcesList.classList.toggle('hidden', open);
+        sourcesList.style.maxHeight = open ? '0px' : `${sourcesList.scrollHeight}px`;
     });
 
     function showError(msg) {
-        resultCard.classList.remove('hidden');
+        revealResultCard();
         statusPill.textContent = 'error';
-        statusPill.className = 'pill rejected';
+        statusPill.className = 'pill rejected pop';
         traceBar.innerHTML = '';
         totalMs.textContent = '';
         transcriptRow.classList.add('hidden');
+        answerText.classList.remove('loading-dots');
         answerText.textContent = msg;
         sourcesSection.classList.add('hidden');
     }

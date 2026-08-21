@@ -8,18 +8,18 @@ Configured Generator       : local-extractive-dev
 
 [Configured Generator ('local-extractive-dev')]
   Samples             : 20
-  P50 Latency         : 28.05 ms
-  P70 Latency         : 40.46 ms
-  P100 (max) Latency  : 573.31 ms
-  Within 200ms Budget  : 19/20 (95.0%)
+  P50 Latency         : 24.89 ms
+  P70 Latency         : 32.79 ms
+  P100 (max) Latency  : 62.82 ms
+  Within 200ms Budget  : 20/20 (100.0%)
   Verdict (P50)       : PASS
 
 [Fast Mode (local extractive generator)]
   Samples             : 20
-  P50 Latency         : 28.05 ms
-  P70 Latency         : 38.81 ms
-  P100 (max) Latency  : 573.31 ms
-  Within 200ms Budget  : 19/20 (95.0%)
+  P50 Latency         : 24.89 ms
+  P70 Latency         : 30.57 ms
+  P100 (max) Latency  : 62.82 ms
+  Within 200ms Budget  : 20/20 (100.0%)
   Verdict (P50)       : PASS
 
 NOTES:
