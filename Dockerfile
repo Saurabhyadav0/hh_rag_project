@@ -16,6 +16,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application codebase
 COPY . .
 
+# Pre-fetch the fastembed ONNX model at build time. Without this the first
+# request after every cold start pays for it at runtime instead (measured
+# ~30s downloading from Hugging Face unauthenticated) -- bad on a platform
+# that stops idle machines, since every wake-up would eat that cost again.
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding(model_name='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+
 # Expose default ports
 EXPOSE 7860 10000
 
