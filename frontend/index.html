@@ -55,16 +55,23 @@
                     </button>
                 </form>
 
-                <div class="lang-row" role="radiogroup" aria-label="Sample query language">
-                    <span class="lang-row-label">try it in</span>
-                    <button type="button" class="lang-pill active" data-lang="en" role="radio" aria-checked="true">EN</button>
-                    <button type="button" class="lang-pill" data-lang="hi" role="radio" aria-checked="false">HI</button>
-                    <button type="button" class="lang-pill" data-lang="as" role="radio" aria-checked="false">AS</button>
-                    <button type="button" class="lang-pill" data-lang="hinglish" role="radio" aria-checked="false">Hinglish</button>
-                    <button type="button" class="lang-pill" data-lang="mr" role="radio" aria-checked="false">MR</button>
-                    <button type="button" class="lang-pill" data-lang="gu" role="radio" aria-checked="false">GU</button>
-                    <button type="button" class="lang-pill" data-lang="te" role="radio" aria-checked="false">TE</button>
-                    <button type="button" class="lang-pill" data-lang="kn" role="radio" aria-checked="false">KN</button>
+                <div class="lang-row">
+                    <label for="langSelect" class="lang-row-label">try it in</label>
+                    <div class="select-wrap">
+                        <select id="langSelect" aria-label="Sample query language">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi · हिन्दी</option>
+                            <option value="as">Assamese/Bengali · অসমীয়া</option>
+                            <option value="hinglish">Hinglish</option>
+                            <option value="mr">Marathi · मराठी</option>
+                            <option value="gu">Gujarati · ગુજરાતી</option>
+                            <option value="te">Telugu · తెలుగు</option>
+                            <option value="kn">Kannada · ಕನ್ನಡ</option>
+                        </select>
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="select-caret">
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
 
                 <div class="chips" id="sampleChips"></div>

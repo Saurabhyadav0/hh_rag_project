@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ],
     };
 
-    const langPills = document.querySelectorAll('.lang-pill');
+    const langSelect = document.getElementById('langSelect');
     const sampleChips = document.getElementById('sampleChips');
 
     function renderChips(lang) {
@@ -209,19 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    langPills.forEach((pill) => {
-        pill.addEventListener('click', () => {
-            langPills.forEach((p) => {
-                p.classList.remove('active');
-                p.setAttribute('aria-checked', 'false');
-            });
-            pill.classList.add('active');
-            pill.setAttribute('aria-checked', 'true');
-            renderChips(pill.dataset.lang);
-        });
-    });
-
-    renderChips('en');
+    langSelect.addEventListener('change', () => renderChips(langSelect.value));
+    renderChips(langSelect.value);
 
     async function safeJson(res) {
         const ct = res.headers.get('content-type') || '';
