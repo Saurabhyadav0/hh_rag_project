@@ -213,29 +213,56 @@ class GroqAnswerGenerator(BaseAnswerGenerator):
             "max_tokens": 150
         }
 
-        try:
-            import requests
-            resp = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=30.0)
-            t1 = time.time()
-            if resp.status_code == 200:
-                ans_text = resp.json()["choices"][0]["message"]["content"].strip()
-                if not ans_text:
-                    fallback = ExtractiveLocalGenerator(provider_name=f"{self.provider_name} (local-fallback)")
-                    return fallback.generate(query, retrieved_context)
-                insufficient = "not have enough information" in ans_text.lower() or "insufficient" in ans_text.lower()
-                return {
-                    "answer": ans_text,
-                    "grounded_status": "insufficient_context" if insufficient else "grounded",
-                    "model_provider": self.provider_name,
-                    "generation_latency_ms": (t1 - t0) * 1000,
-                    "error": None
-                }
-            else:
-                fallback = ExtractiveLocalGenerator(provider_name=f"{self.provider_name} (local-fallback)")
-                return fallback.generate(query, retrieved_context)
-        except Exception as e:
-            fallback = ExtractiveLocalGenerator(provider_name=f"{self.provider_name} (local-fallback)")
-            return fallback.generate(query, retrieved_context)
+        import requests
+
+        # Retry transient failures (timeouts, connection errors, 429/5xx)
+        # once with a short backoff before giving up -- a single network
+        # blip shouldn't immediately downgrade every answer to the local
+        # extractive fallback. Non-retryable failures (4xx other than 429,
+        # e.g. bad API key) fall back immediately since retrying won't help.
+        max_attempts = 2
+        backoff_seconds = 0.4
+        last_exception: Optional[Exception] = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers, json=payload, timeout=30.0,
+                )
+                t1 = time.time()
+
+                if resp.status_code == 200:
+                    ans_text = resp.json()["choices"][0]["message"]["content"].strip()
+                    if not ans_text:
+                        break
+                    insufficient = "not have enough information" in ans_text.lower() or "insufficient" in ans_text.lower()
+                    return {
+                        "answer": ans_text,
+                        "grounded_status": "insufficient_context" if insufficient else "grounded",
+                        "model_provider": self.provider_name,
+                        "generation_latency_ms": (t1 - t0) * 1000,
+                        "error": None
+                    }
+
+                retryable = resp.status_code == 429 or resp.status_code >= 500
+                if retryable and attempt < max_attempts:
+                    time.sleep(backoff_seconds)
+                    continue
+                break
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                last_exception = e
+                if attempt < max_attempts:
+                    time.sleep(backoff_seconds)
+                    continue
+                break
+            except Exception as e:
+                last_exception = e
+                break
+
+        fallback = ExtractiveLocalGenerator(provider_name=f"{self.provider_name} (local-fallback)")
+        return fallback.generate(query, retrieved_context)
 
 
 class APICloudGenerator(BaseAnswerGenerator):
