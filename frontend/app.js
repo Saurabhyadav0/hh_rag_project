@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const transcriptText = document.getElementById('transcriptText');
     const answerText = document.getElementById('answerText');
     const copyBtn = document.getElementById('copyBtn');
+    const speakBtn = document.getElementById('speakBtn');
     const sourcesSection = document.getElementById('sourcesSection');
     const sourcesToggle = document.getElementById('sourcesToggle');
     const sourcesLabel = document.getElementById('sourcesLabel');
@@ -276,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setBusy(msg) {
         revealResultCard();
+        stopSpeaking();
         statusPill.textContent = '';
         statusPill.className = 'pill pill-busy';
         traceBar.innerHTML = '';
@@ -284,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         answerText.textContent = msg;
         answerText.classList.add('loading-dots');
         copyBtn.classList.add('hidden');
+        speakBtn.classList.add('hidden');
         sourcesSection.classList.add('hidden');
     }
 
@@ -301,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCommon(status, grounded, latency, answer, sources) {
         revealResultCard();
+        stopSpeaking();
         answerText.classList.remove('loading-dots');
 
         const label = (status || 'unknown').replace(/_/g, ' ');
@@ -316,8 +320,65 @@ document.addEventListener('DOMContentLoaded', () => {
         answerText.classList.add('fade-in');
         copyBtn.classList.toggle('hidden', !answer);
         copyBtn.classList.remove('copied');
+        speakBtn.classList.toggle('hidden', !answer || !('speechSynthesis' in window));
         renderSources(sources);
     }
+
+    // --- Text-to-speech ---
+    // Browser-native (no backend/API needed): detects the script the answer
+    // is written in and picks a matching voice/lang so e.g. a Hindi answer
+    // is read in Hindi rather than an English voice mangling Devanagari.
+    // Defaults to English when the text is plain ASCII.
+    const SCRIPT_LANG_RANGES = [
+        [/[ऀ-ॿ]/, 'hi-IN'],   // Devanagari (Hindi, Marathi)
+        [/[ঀ-৿]/, 'bn-IN'],   // Bengali / Assamese
+        [/[઀-૿]/, 'gu-IN'],   // Gujarati
+        [/[஀-௿]/, 'ta-IN'],   // Tamil
+        [/[ఀ-౿]/, 'te-IN'],   // Telugu
+        [/[ಀ-೿]/, 'kn-IN'],   // Kannada
+        [/[਀-੿]/, 'pa-IN'],   // Punjabi
+        [/[ഀ-ൿ]/, 'ml-IN'],   // Malayalam
+        [/[଀-୿]/, 'or-IN'],   // Odia
+    ];
+
+    function detectSpeechLang(text) {
+        for (const [pattern, lang] of SCRIPT_LANG_RANGES) {
+            if (pattern.test(text)) return lang;
+        }
+        return 'en-US';
+    }
+
+    function pickVoice(lang) {
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices.length) return null;
+        return voices.find((v) => v.lang === lang)
+            || voices.find((v) => v.lang.startsWith(lang.split('-')[0]))
+            || null;
+    }
+
+    function stopSpeaking() {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        speakBtn.classList.remove('speaking');
+    }
+
+    speakBtn.addEventListener('click', () => {
+        if (!('speechSynthesis' in window)) return;
+        if (speakBtn.classList.contains('speaking')) {
+            stopSpeaking();
+            return;
+        }
+        window.speechSynthesis.cancel();
+        const text = answerText.textContent;
+        const lang = detectSpeechLang(text);
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = lang;
+        const voice = pickVoice(lang);
+        if (voice) utter.voice = voice;
+        utter.onend = () => speakBtn.classList.remove('speaking');
+        utter.onerror = () => speakBtn.classList.remove('speaking');
+        speakBtn.classList.add('speaking');
+        window.speechSynthesis.speak(utter);
+    });
 
     copyBtn.addEventListener('click', async () => {
         try {
@@ -389,6 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showError(msg) {
         revealResultCard();
+        stopSpeaking();
         statusPill.textContent = 'error';
         statusPill.className = 'pill rejected pop';
         traceBar.innerHTML = '';
@@ -397,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
         answerText.classList.remove('loading-dots');
         answerText.textContent = msg;
         copyBtn.classList.add('hidden');
+        speakBtn.classList.add('hidden');
         sourcesSection.classList.add('hidden');
     }
 

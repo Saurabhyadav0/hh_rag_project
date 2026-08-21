@@ -637,6 +637,24 @@ html, body {
 .copy-btn .check-icon { display: none; color: var(--good); }
 .copy-btn.copied .copy-icon { display: none; }
 .copy-btn.copied .check-icon { display: block; }
+
+.answer-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+#speakBtn .speak-icon, #speakBtn .stop-icon { width: 15px; height: 15px; }
+#speakBtn .stop-icon { display: none; color: var(--secondary); }
+#speakBtn.speaking { border-color: var(--secondary); color: var(--secondary); animation: speak-pulse 1.1s ease-in-out infinite; }
+#speakBtn.speaking .speak-icon { display: none; }
+#speakBtn.speaking .stop-icon { display: block; }
+
+@keyframes speak-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--secondary-dim); }
+    50% { box-shadow: 0 0 0 5px var(--secondary-dim); }
+}
 .copy-btn.copied { border-color: var(--good); }
 
 .sources { margin-top: 18px; }
