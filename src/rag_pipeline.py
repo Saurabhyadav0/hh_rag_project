@@ -332,8 +332,17 @@ class RAGPipeline:
             final_answer = raw_answer if ground_eval["grounded"] else \
                 "I do not have enough information from the retrieved context to answer this question."
 
+            # The generator itself can give up and emit the same fallback text
+            # the grounding guardrail treats as trivially "grounded" (it's not
+            # a claim about anything, so nothing to contradict). That's correct
+            # for the `grounded` flag, but the request wasn't actually answered,
+            # so `status` should say so rather than report "answered" for a
+            # response that is word-for-word "I don't know".
+            actually_answered = ground_eval["grounded"] and final_answer.strip() != \
+                "I do not have enough information from the retrieved context to answer this question."
+
             res = self._build_result(
-                status="answered" if ground_eval["grounded"] else "insufficient_context",
+                status="answered" if actually_answered else "insufficient_context",
                 query=query,
                 answer=final_answer,
                 grounded=ground_eval["grounded"],
