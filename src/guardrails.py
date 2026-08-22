@@ -37,6 +37,25 @@ if hasattr(sys.stdout, 'reconfigure'):
 # as well as the "forget X, do Y instead" redirect pattern, which is a
 # distinct bypass: it doesn't ask to reveal or override rules explicitly, it
 # just tries to substitute a new task for the original one.
+# Whole-query chit-chat/greeting patterns (anchored, not substring search).
+# A bare "Hello, how are you?" retrieves *something* from a 16k-chunk corpus
+# by cosine similarity no matter how irrelevant -- text like a stray "Hello,
+# internet!" chunk can score high purely on lexical overlap with "hello"
+# -- and without this check it sails past ContextValidator's relevance
+# threshold into a real (slow, ~1-4s) LLM call that either echoes that junk
+# back as a nonsense "answered" response or eventually self-refuses anyway.
+# Catching it here rejects it in <1ms instead, before retrieval ever runs.
+CHITCHAT_PATTERNS = [
+    r"^(hi|hello|hey|hiya|yo)( there)?[\s!.,]*$",
+    r"^(hi|hello|hey|hiya|yo)[\s,!.]*how\s+are\s+you( doing)?[\s?!.]*$",
+    r"^how\s+are\s+you( doing)?[\s?!.]*$",
+    r"^good\s+(morning|afternoon|evening|night)[\s!.,]*$",
+    r"^(what'?s\s+up|sup)[\s?!.]*$",
+    r"^(thanks?|thank\s+you|thx)(\s+(so\s+much|a\s+lot|very\s+much))?[\s!.,]*$",
+    r"^(bye|goodbye|see\s+you|see\s+ya)[\s!.,]*$",
+    r"^who\s+are\s+you[\s?!.]*$",
+]
+
 OFF_TOPIC_PATTERNS = [
     r"\b(write|compose|create|generate)\s+.*(poem|song|story|essay|joke|game|script|code|program|function)\b",
     r"\b(tell|give)\s+me\s+.*(joke|riddle|story|poem)\b",
@@ -77,10 +96,12 @@ class InputGuardrail:
     def __init__(
         self,
         off_topic_patterns: Optional[List[str]] = None,
-        unsafe_patterns: Optional[List[str]] = None
+        unsafe_patterns: Optional[List[str]] = None,
+        chitchat_patterns: Optional[List[str]] = None
     ):
         self.off_topic_patterns = [re.compile(p, re.IGNORECASE) for p in (off_topic_patterns or OFF_TOPIC_PATTERNS)]
         self.unsafe_patterns = [re.compile(p, re.IGNORECASE) for p in (unsafe_patterns or UNSAFE_PATTERNS)]
+        self.chitchat_patterns = [re.compile(p, re.IGNORECASE) for p in (chitchat_patterns or CHITCHAT_PATTERNS)]
 
     def validate(self, query: str) -> Dict[str, Any]:
         if not query or not query.strip():
@@ -102,6 +123,19 @@ class InputGuardrail:
                 "reason": "Query contains no actual words to search for.",
                 "category": "invalid"
             }
+
+        # Check chit-chat/greetings -- these can retrieve *something* from
+        # the corpus by incidental lexical overlap and would otherwise slip
+        # past the relevance threshold into a real, slow LLM call. Checked
+        # before the (substring-search) off-topic patterns since this is a
+        # whole-query match, cheaper and more precise for this case.
+        for pattern in self.chitchat_patterns:
+            if pattern.match(q_clean):
+                return {
+                    "allowed": False,
+                    "reason": "Query is a greeting/chit-chat, not a question this RAG system can answer from its corpus.",
+                    "category": "off_topic"
+                }
 
         # Check safety violations
         for pattern in self.unsafe_patterns:
