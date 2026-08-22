@@ -578,18 +578,29 @@ html, body {
 .latency-note strong.over { color: var(--bad); }
 
 .transcript-row {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 2px dashed var(--primary-line);
+}
+
+.transcript-line {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13.5px;
     color: var(--ink-faint);
     font-style: italic;
-    margin-bottom: 14px;
-    padding-bottom: 14px;
-    border-bottom: 2px dashed var(--primary-line);
 }
 
 .transcript-icon { width: 15px; height: 15px; flex-shrink: 0; }
+
+.transcript-meta {
+    margin: 6px 0 0 23px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--secondary);
+    letter-spacing: 0.02em;
+}
 
 .answer-row {
     display: flex;

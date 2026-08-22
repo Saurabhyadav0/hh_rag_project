@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const latencyNote = document.getElementById('latencyNote');
     const transcriptRow = document.getElementById('transcriptRow');
     const transcriptText = document.getElementById('transcriptText');
+    const transcriptMeta = document.getElementById('transcriptMeta');
     const answerText = document.getElementById('answerText');
     const copyBtn = document.getElementById('copyBtn');
     const speakBtn = document.getElementById('speakBtn');
@@ -326,10 +327,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderVoice(data) {
         const provider = data.rag_details?.metadata?.generator_provider || '';
-        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.rag_details?.retrieved_context || [], provider);
+        // data.latency is the voice-level {stt_ms, rag_ms, total_ms} -- the
+        // trace bar and latency note need the RAG pipeline's own breakdown
+        // (input_guardrail_ms/retrieval_ms/generation_ms/grounding_ms),
+        // which lives one level down at data.rag_details.latency. Keep the
+        // RAG breakdown for those, but override total_ms with the true
+        // full-pipeline total (STT + RAG) for the headline number.
+        const ragLatency = data.rag_details?.latency || {};
+        const combinedLatency = { ...ragLatency, total_ms: data.latency?.total_ms ?? ragLatency.total_ms };
+        renderCommon(data.status, data.grounded, combinedLatency, data.answer, data.rag_details?.retrieved_context || [], provider);
         if (data.transcript) {
             transcriptRow.classList.remove('hidden');
-            transcriptText.textContent = data.transcript;
+            transcriptText.textContent = `"${data.transcript}"`;
+            const lang = (data.language || 'unknown').toUpperCase();
+            const sttMs = Math.round(data.latency?.stt_ms || 0);
+            const totalMs = Math.round(data.latency?.total_ms || 0);
+            transcriptMeta.textContent = `Detected language: ${lang}  ·  STT latency: ${sttMs}ms  ·  Total: ${totalMs}ms`;
         }
     }
 

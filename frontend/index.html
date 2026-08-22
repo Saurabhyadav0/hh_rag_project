@@ -161,11 +161,14 @@
                 <p id="latencyNote" class="latency-note hidden"></p>
 
                 <div id="transcriptRow" class="transcript-row hidden">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="transcript-icon">
-                        <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/>
-                        <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                    </svg>
-                    <span id="transcriptText"></span>
+                    <div class="transcript-line">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="transcript-icon">
+                            <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" stroke-width="1.6"/>
+                            <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                        </svg>
+                        <span id="transcriptText"></span>
+                    </div>
+                    <p id="transcriptMeta" class="transcript-meta"></p>
                 </div>
 
                 <div class="answer-row">
