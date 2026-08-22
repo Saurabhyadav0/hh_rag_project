@@ -3,23 +3,23 @@
 ==================================================
 Latency Budget (task spec): full pipeline <= 200ms
 Distinct Test Queries      : 20
-Repeats Per Query          : 1
+Repeats Per Query          : 2
 Configured Generator       : local-extractive-dev
 
 [Configured Generator ('local-extractive-dev')]
-  Samples             : 20
-  P50 Latency         : 24.89 ms
-  P70 Latency         : 32.79 ms
-  P100 (max) Latency  : 62.82 ms
-  Within 200ms Budget  : 20/20 (100.0%)
+  Samples             : 40
+  P50 Latency         : 25.31 ms
+  P70 Latency         : 29.57 ms
+  P100 (max) Latency  : 62.96 ms
+  Within 200ms Budget  : 40/40 (100.0%)
   Verdict (P50)       : PASS
 
 [Fast Mode (local extractive generator)]
-  Samples             : 20
-  P50 Latency         : 24.89 ms
-  P70 Latency         : 30.57 ms
-  P100 (max) Latency  : 62.82 ms
-  Within 200ms Budget  : 20/20 (100.0%)
+  Samples             : 40
+  P50 Latency         : 0.0 ms
+  P70 Latency         : 0.0 ms
+  P100 (max) Latency  : 35.72 ms
+  Within 200ms Budget  : 40/40 (100.0%)
   Verdict (P50)       : PASS
 
 NOTES:

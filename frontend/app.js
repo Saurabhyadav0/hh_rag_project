@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // src/benchmark_e2e_latency.py (see data/e2e_latency_benchmark.txt),
     // not a live feed -- rerun the script and update these after any change
     // that could affect retrieval or generation latency.
-    const BENCH = { p50: 24.89, p70: 32.79, p100: 62.82, n: 20, withinPct: 100.0 };
+    const BENCH = { p50: 25.31, p70: 29.57, p100: 62.96, n: 20, withinPct: 100.0 };
     document.getElementById('benchN').textContent = BENCH.n;
     animateCount(document.getElementById('benchP50'), BENCH.p50, ' ms', 1);
     animateCount(document.getElementById('benchP70'), BENCH.p70, ' ms', 1);
