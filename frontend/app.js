@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusPill = document.getElementById('statusPill');
     const traceBar = document.getElementById('traceBar');
     const totalMs = document.getElementById('totalMs');
+    const latencyNote = document.getElementById('latencyNote');
     const transcriptRow = document.getElementById('transcriptRow');
     const transcriptText = document.getElementById('transcriptText');
     const answerText = document.getElementById('answerText');
@@ -282,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusPill.className = 'pill pill-busy';
         traceBar.innerHTML = '';
         totalMs.textContent = '';
+        latencyNote.classList.add('hidden');
         transcriptRow.classList.add('hidden');
         answerText.textContent = msg;
         answerText.classList.add('loading-dots');
@@ -313,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderTrace(latency);
         animateCount(totalMs, Math.round(latency.total_ms || 0), ' ms', 0, 500);
+        renderLatencyNote(latency);
 
         answerText.textContent = answer || 'No answer generated.';
         answerText.classList.remove('fade-in');
@@ -417,6 +420,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // The 200ms budget in the task brief (and in src/benchmark_e2e_latency.py)
+    // covers retrieval + guardrails only -- it explicitly excludes STT and any
+    // hosted-LLM generation call, both of which are network round-trips this
+    // app doesn't control. total_ms sums every stage including generation, so
+    // on its own it can look like the budget is being broken when it isn't.
+    // This makes that split visible instead of leaving it to a README.
+    function renderLatencyNote(latency) {
+        const budgetMs = (latency.input_guardrail_ms || 0) + (latency.retrieval_ms || 0) + (latency.grounding_ms || 0);
+        const generationMs = latency.generation_ms || 0;
+        if (generationMs < 1) {
+            latencyNote.classList.add('hidden');
+            return;
+        }
+        const withinBudget = budgetMs <= 200;
+        latencyNote.innerHTML = `<strong class="${withinBudget ? 'ok' : 'over'}">${budgetMs.toFixed(0)}ms</strong> retrieval + guardrails (200ms budget) &nbsp;+&nbsp; <strong>${generationMs.toFixed(0)}ms</strong> external LLM call (Groq, not part of the budget)`;
+        latencyNote.classList.remove('hidden');
+    }
+
     function renderSources(sources) {
         if (!sources || sources.length === 0) {
             sourcesSection.classList.add('hidden');
@@ -455,6 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusPill.className = 'pill rejected pop';
         traceBar.innerHTML = '';
         totalMs.textContent = '';
+        latencyNote.classList.add('hidden');
         transcriptRow.classList.add('hidden');
         answerText.classList.remove('loading-dots');
         answerText.textContent = msg;

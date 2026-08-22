@@ -565,6 +565,18 @@ html, body {
     white-space: nowrap;
 }
 
+.latency-note {
+    margin: 10px 0 0;
+    font-size: 11.5px;
+    font-family: var(--font-mono);
+    color: var(--ink-faint);
+    line-height: 1.6;
+}
+
+.latency-note strong { font-weight: 700; }
+.latency-note strong.ok { color: var(--good); }
+.latency-note strong.over { color: var(--bad); }
+
 .transcript-row {
     display: flex;
     align-items: center;
