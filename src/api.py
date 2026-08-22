@@ -127,6 +127,39 @@ async def debug_config():
     }
 
 
+# 1c. Live Gemini connectivity probe -- makes one raw, uncached call
+# straight to the Gemini API from the running Fly machine (bypassing the
+# retry/fallback chain) and returns the real HTTP status + error body, to
+# tell apart a bad key from rate-limiting from an outbound-network/region
+# problem, none of which are distinguishable from query-response labels
+# alone (every failure mode collapses to the same Groq/local fallback).
+@app.get("/api/debug/gemini-live")
+async def debug_gemini_live():
+    import requests
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    model = os.getenv("GEMINI_MODEL_NAME", "gemini-3.6-flash")
+    if not api_key:
+        return {"ok": False, "reason": "GEMINI_API_KEY not set in this process"}
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    t0 = time.time()
+    try:
+        resp = requests.post(
+            url, headers={"content-type": "application/json"},
+            json={"contents": [{"role": "user", "parts": [{"text": "Say OK"}]}]},
+            params={"key": api_key}, timeout=15.0,
+        )
+        elapsed_ms = round((time.time() - t0) * 1000, 1)
+        return {
+            "ok": resp.status_code == 200,
+            "http_status": resp.status_code,
+            "elapsed_ms": elapsed_ms,
+            "body": resp.text[:600],
+        }
+    except Exception as e:
+        return {"ok": False, "exception": type(e).__name__, "message": str(e)}
+
+
 # 2. Text Q&A Endpoint
 @app.post("/api/text")
 async def text_query(req: TextQueryRequest, request: Request):
