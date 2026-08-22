@@ -15,6 +15,15 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <div id="coldStartOverlay" class="cold-start-overlay" role="status" aria-live="polite">
+        <div class="cold-start-card">
+            <div class="cold-start-spinner" aria-hidden="true"></div>
+            <p class="cold-start-title">Waking up the server&hellip;</p>
+            <p class="cold-start-text">The backend sleeps when idle to save resources, so the first request can take a little while to boot. Please wait &mdash; this page will continue automatically once it's ready.</p>
+            <p class="cold-start-subtext" id="coldStartSubtext"></p>
+        </div>
+    </div>
+
     <div class="scene" aria-hidden="true">
         <div class="glow glow-a"></div>
         <div class="glow glow-b"></div>

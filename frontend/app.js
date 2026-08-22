@@ -13,6 +13,38 @@
 const API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) || '';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Cold-Start Overlay: Fly.io suspends the backend machine when idle
+    // (auto_stop_machines), so the first request after a gap can take
+    // 10-40s to boot while the proxy holds the connection open. Rather
+    // than let the page sit there looking frozen/broken, block it behind
+    // a blurred overlay and poll /health until the server is actually up.
+    (function pollColdStart() {
+        const overlay = document.getElementById('coldStartOverlay');
+        const subtext = document.getElementById('coldStartSubtext');
+        if (!overlay) return;
+
+        const startedAt = Date.now();
+
+        async function check() {
+            const elapsedS = Math.round((Date.now() - startedAt) / 1000);
+            if (elapsedS >= 8) {
+                subtext.textContent = `Still starting… (${elapsedS}s) — first boot can take up to a minute.`;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/health`, { cache: 'no-store' });
+                if (res.ok) {
+                    overlay.classList.add('hidden');
+                    setTimeout(() => overlay.remove(), 600);
+                    return;
+                }
+            } catch (e) {
+                // Server not reachable yet (machine still booting) -- keep polling.
+            }
+            setTimeout(check, 1500);
+        }
+        check();
+    })();
+
     const recordBtn = document.getElementById('recordBtn');
     const micLabel = document.getElementById('micLabel');
     const micTimer = document.getElementById('micTimer');
