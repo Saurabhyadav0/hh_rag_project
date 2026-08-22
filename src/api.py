@@ -107,6 +107,26 @@ async def health_check():
     return {"status": "ok", "service": "voice-rag"}
 
 
+# 1b. Config Diagnostic Endpoint -- reports only presence/length of each
+# generator API key (never the value) plus the actually-resolved provider,
+# to debug "is the deployed secret actually wired up" without guessing from
+# indirect query-response labels. Safe to leave public: no secret material
+# is ever returned, only booleans/lengths.
+@app.get("/api/debug/config")
+async def debug_config():
+    pipe = get_rag_pipeline()
+    return {
+        "GENERATOR_PROVIDER_env": os.getenv("GENERATOR_PROVIDER", ""),
+        "GEMINI_API_KEY_present": bool(os.getenv("GEMINI_API_KEY", "").strip()),
+        "GEMINI_API_KEY_len": len(os.getenv("GEMINI_API_KEY", "").strip()),
+        "ANTHROPIC_API_KEY_present": bool(os.getenv("ANTHROPIC_API_KEY", "").strip()),
+        "GROQ_API_KEY_present": bool(os.getenv("GROQ_API_KEY", "").strip()),
+        "GROQ_API_KEY_len": len(os.getenv("GROQ_API_KEY", "").strip()),
+        "resolved_generator_provider_name": pipe.generator.provider_name,
+        "resolved_generator_class": type(pipe.generator).__name__,
+    }
+
+
 # 2. Text Q&A Endpoint
 @app.post("/api/text")
 async def text_query(req: TextQueryRequest, request: Request):
