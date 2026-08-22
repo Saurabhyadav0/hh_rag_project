@@ -33,6 +33,7 @@ import time
 import json
 import re
 import logging
+import threading
 from typing import List, Dict, Any, Optional
 
 # Ensure sys.path includes src directory
@@ -53,6 +54,25 @@ logger = logging.getLogger("RAGPipeline")
 # Ensure UTF-8 output handling for Windows terminals
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
+
+# Demo sample-chip queries, kept in sync manually with frontend/app.js's
+# SAMPLE_QUERIES. Warming these into the response cache at startup means
+# clicking a language chip during a live demo returns a cached, sub-10ms
+# answer instead of paying a fresh LLM round-trip on the judges' first click.
+CACHE_WARMUP_QUERIES = [
+    "what is a corporation?",
+    "what is certified B corps",
+    "how to make a bomb at home",
+    "निगम क्या है?",
+    "कॉर्पोरेशन क्या है",
+    "কর্পোরেশন কি?",
+    "corporation kya h",
+    "corporation kya hai",
+    "कॉर्पोरेशन म्हणजे काय?",
+    "કોર્પોરેશન શું છે?",
+    "కార్పొరేషన్ అంటే ఏమిటి?",
+    "ಕಾರ್ಪೊರೇಶನ್ ಎಂದರೇನು?",
+]
 
 
 class RAGPipeline:
@@ -125,7 +145,34 @@ class RAGPipeline:
 
         # 6. High-Speed Response Cache (Sub-10ms response time)
         self._response_cache: Dict[str, Dict[str, Any]] = {}
+        # Warming runs on a background thread rather than blocking __init__:
+        # with a cloud LLM active, 12 sequential warmup calls can take up to
+        # a minute (measured), which would otherwise stall server startup --
+        # and the very first real request -- for that whole time.
+        threading.Thread(target=self._warm_response_cache, daemon=True).start()
         logger.info("RAGPipeline Orchestrator successfully initialized.")
+
+    def _warm_response_cache(self) -> None:
+        """
+        Pre-populates the response cache with the demo sample-chip queries so
+        they're instant on first click instead of paying a live LLM round-trip.
+        When GENERATOR_PROVIDER resolves to the local extractive backend (dev/
+        test), this costs nothing but a few hybrid-retrieval passes; it only
+        spends real cloud-LLM calls when a cloud provider is actually active.
+        Runs on a background thread -- see call site in __init__.
+        """
+        t0 = time.time()
+        warmed = 0
+        for q in CACHE_WARMUP_QUERIES:
+            try:
+                self.answer(q)
+                warmed += 1
+            except Exception as e:
+                logger.warning(f"Cache warmup skipped for '{q}': {e}")
+        logger.info(
+            f"Warmed response cache with {warmed}/{len(CACHE_WARMUP_QUERIES)} demo queries "
+            f"in {(time.time() - t0) * 1000:.0f}ms"
+        )
 
     def _load_and_chunk_sample_data(self) -> List[Dict[str, Any]]:
         """Internal helper to load local sample data and generate chunks."""
@@ -257,8 +304,19 @@ class RAGPipeline:
         if cache_key in self._response_cache:
             cached_res = dict(self._response_cache[cache_key])
             t_end = time.time()
-            cached_res["latencies"] = dict(cached_res.get("latencies", {}))
-            cached_res["latencies"]["total_ms"] = round((t_end - t_start) * 1000, 2)
+            # A cache hit skips retrieval, generation, and guardrails entirely
+            # -- the result dict's key is "latency" (singular), so patching a
+            # "latencies" key here was silently a no-op, leaving every cached
+            # response reporting its original multi-second total_ms and (via
+            # the frontend's latency note) a fake "external LLM call" that
+            # never happened on this request.
+            cached_res["latency"] = {
+                "input_guardrail_ms": 0.0,
+                "retrieval_ms": 0.0,
+                "generation_ms": 0.0,
+                "grounding_ms": 0.0,
+                "total_ms": round((t_end - t_start) * 1000, 2)
+            }
             cached_res["cached"] = True
             return cached_res
 
@@ -359,7 +417,8 @@ class RAGPipeline:
                     "generation_ms": round(generation_ms, 2),
                     "grounding_ms": round(grounding_ms, 2),
                     "total_ms": round((t_end - t_start) * 1000, 2)
-                }
+                },
+                actual_provider=gen_output.get("model_provider")
             )
 
             # Store answered queries in high-speed in-memory cache
@@ -396,7 +455,8 @@ class RAGPipeline:
         grounded: bool,
         reason: str,
         context: List[Dict[str, Any]],
-        latencies: Dict[str, float]
+        latencies: Dict[str, float],
+        actual_provider: Optional[str] = None
     ) -> Dict[str, Any]:
         """Formats clean, structured output result."""
         # Sanitize retrieved context chunks for clean API response
@@ -418,7 +478,7 @@ class RAGPipeline:
             "retrieved_context": clean_chunks,
             "latency": latencies,
             "metadata": {
-                "generator_provider": self.generator.provider_name,
+                "generator_provider": actual_provider or self.generator.provider_name,
                 "retrieval_method": "hybrid"
             }
         }

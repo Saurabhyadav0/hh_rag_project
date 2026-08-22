@@ -293,7 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderVoice(data) {
-        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.rag_details?.retrieved_context || []);
+        const provider = data.rag_details?.metadata?.generator_provider || '';
+        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.rag_details?.retrieved_context || [], provider);
         if (data.transcript) {
             transcriptRow.classList.remove('hidden');
             transcriptText.textContent = data.transcript;
@@ -301,10 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderText(data) {
-        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.retrieved_context || []);
+        const provider = data.metadata?.generator_provider || '';
+        renderCommon(data.status, data.grounded, data.latency || {}, data.answer, data.retrieved_context || [], provider);
     }
 
-    function renderCommon(status, grounded, latency, answer, sources) {
+    function renderCommon(status, grounded, latency, answer, sources, provider) {
         revealResultCard();
         stopSpeaking();
         answerText.classList.remove('loading-dots');
@@ -315,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderTrace(latency);
         animateCount(totalMs, Math.round(latency.total_ms || 0), ' ms', 0, 500);
-        renderLatencyNote(latency);
+        renderLatencyNote(latency, provider);
 
         answerText.textContent = answer || 'No answer generated.';
         answerText.classList.remove('fade-in');
@@ -426,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // app doesn't control. total_ms sums every stage including generation, so
     // on its own it can look like the budget is being broken when it isn't.
     // This makes that split visible instead of leaving it to a README.
-    function renderLatencyNote(latency) {
+    function renderLatencyNote(latency, provider) {
         const budgetMs = (latency.input_guardrail_ms || 0) + (latency.retrieval_ms || 0) + (latency.grounding_ms || 0);
         const generationMs = latency.generation_ms || 0;
         if (generationMs < 1) {
@@ -434,7 +436,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const withinBudget = budgetMs <= 200;
-        latencyNote.innerHTML = `<strong class="${withinBudget ? 'ok' : 'over'}">${budgetMs.toFixed(0)}ms</strong> retrieval + guardrails (200ms budget) &nbsp;+&nbsp; <strong>${generationMs.toFixed(0)}ms</strong> external LLM call (Groq, not part of the budget)`;
+        // provider_name looks like "claude (claude-haiku-4-5-20251001)" or
+        // "groq (openai/gpt-oss-20b)" -- pull just the human-friendly prefix.
+        const providerLabel = provider ? provider.split(' (')[0] : 'external LLM';
+        latencyNote.innerHTML = `<strong class="${withinBudget ? 'ok' : 'over'}">${budgetMs.toFixed(0)}ms</strong> retrieval + guardrails (200ms budget) &nbsp;+&nbsp; <strong>${generationMs.toFixed(0)}ms</strong> external LLM call (${providerLabel}, not part of the budget)`;
         latencyNote.classList.remove('hidden');
     }
 

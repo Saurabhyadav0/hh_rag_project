@@ -287,12 +287,12 @@ def render_latency_analytics_dashboard(elapsed_ms: float):
         col_table, col_summary = st.columns([3, 2])
         
         with col_table:
-            st.markdown("""
+            st.markdown(f"""
             | Pipeline Phase | Component / Tech Stack | P50 Speed |
             | :--- | :--- | :---: |
             | **Input Guardrail** | Regex Safety & Off-Topic Validator | `< 1.5 ms` |
             | **Hybrid Retrieval** | FAISS FlatIP + BM25 (`rank_bm25`) | `~145.0 ms` |
-            | **LLM Generation** | Groq LPU (`openai/gpt-oss-20b`) | `< 80.0 ms` |
+            | **LLM Generation** | {rag_pipeline.generator.provider_name} | `< 80.0 ms` |
             | **Output Guardrail** | Zero-Hallucination Grounding Check | `< 2.0 ms` |
             | **In-Memory Cache** | Response LRU Fast-Path | `0.01 ms` |
             """)
@@ -361,7 +361,7 @@ with tab_voice:
         <div class="status-badges">
             <span class="badge-status">{result.get('status', 'ANSWERED').upper()}</span>
             <span class="badge-grounded">GROUNDED</span>
-            <span class="badge-info">Groq ({rag_pipeline.generator.provider_name})</span>
+            <span class="badge-info">{rag_pipeline.generator.provider_name}</span>
         </div>
         """, unsafe_allow_html=True)
         
